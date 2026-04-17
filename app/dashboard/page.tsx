@@ -122,53 +122,25 @@ export default function DashboardPage() {
 
         {/* 功能入口 */}
         <div className="space-y-3">
-          <button onClick={() => router.push('/stats')}
-            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📊</span>
-              <div className="text-left">
-                <div className="font-semibold text-sm">训练数据</div>
-                <div className="text-xs text-gray-400 mt-0.5">进步曲线 · 总量统计</div>
+          {[
+            { path: '/stats', emoji: '📊', title: '训练数据', sub: '进步曲线 · 总量统计' },
+            { path: '/measurements', emoji: '📏', title: '身体数据', sub: '腰围 · 体重趋势' },
+            { path: '/history', emoji: '📅', title: '训练历史', sub: '查看所有记录' },
+            { path: '/leaderboard', emoji: '🏆', title: '排行榜', sub: '和大家比一比' },
+            { path: '/photos', emoji: '📸', title: '身体变化记录', sub: 'AI 对比前后变化' },
+          ].map(item => (
+            <button key={item.path} onClick={() => router.push(item.path)}
+              className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{item.emoji}</span>
+                <div className="text-left">
+                  <div className="font-semibold text-sm">{item.title}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{item.sub}</div>
+                </div>
               </div>
-            </div>
-            <span className="text-gray-500 text-lg">→</span>
-          </button>
-
-          <button onClick={() => router.push('/history')}
-            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📅</span>
-              <div className="text-left">
-                <div className="font-semibold text-sm">训练历史</div>
-                <div className="text-xs text-gray-400 mt-0.5">查看所有记录</div>
-              </div>
-            </div>
-            <span className="text-gray-500 text-lg">→</span>
-          </button>
-
-          <button onClick={() => router.push('/leaderboard')}
-            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🏆</span>
-              <div className="text-left">
-                <div className="font-semibold text-sm">排行榜</div>
-                <div className="text-xs text-gray-400 mt-0.5">和大家比一比</div>
-              </div>
-            </div>
-            <span className="text-gray-500 text-lg">→</span>
-          </button>
-
-          <button onClick={() => router.push('/photos')}
-            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📸</span>
-              <div className="text-left">
-                <div className="font-semibold text-sm">身体变化记录</div>
-                <div className="text-xs text-gray-400 mt-0.5">AI 对比前后变化</div>
-              </div>
-            </div>
-            <span className="text-gray-500 text-lg">→</span>
-          </button>
+              <span className="text-gray-500 text-lg">→</span>
+            </button>
+          ))}
         </div>
 
         {/* 最近记录 */}
