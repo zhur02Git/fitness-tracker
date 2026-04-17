@@ -82,15 +82,12 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold mt-1">准备好训练了吗？</h1>
             <p className="text-xs text-gray-500 mt-1">{userEmail}</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="text-xs text-gray-500 hover:text-gray-300 transition-colors mt-1"
-          >
+          <button onClick={handleLogout}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors mt-1">
             退出
           </button>
         </div>
 
-        {/* 统计 */}
         <div className="mt-5 bg-gray-800 rounded-2xl px-4 py-3 flex items-center gap-3">
           <div className="text-2xl">🔥</div>
           <div>
@@ -104,24 +101,18 @@ export default function DashboardPage() {
       </div>
 
       <div className="px-4 py-6 space-y-6">
-
         {/* 开始训练 */}
         <div>
           <h2 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">今天练什么</h2>
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => router.push('/workout/strength')}
-              className="bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-2xl p-5 text-left transition-all"
-            >
+            <button onClick={() => router.push('/workout/strength')}
+              className="bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-2xl p-5 text-left transition-all">
               <div className="text-3xl mb-3">🏋️</div>
               <div className="font-semibold text-sm">力量训练</div>
               <div className="text-xs text-blue-200 mt-1">组数 · 重量 · 次数</div>
             </button>
-
-            <button
-              onClick={() => router.push('/workout/cardio')}
-              className="bg-orange-500 hover:bg-orange-400 active:scale-95 rounded-2xl p-5 text-left transition-all"
-            >
+            <button onClick={() => router.push('/workout/cardio')}
+              className="bg-orange-500 hover:bg-orange-400 active:scale-95 rounded-2xl p-5 text-left transition-all">
               <div className="text-3xl mb-3">🏃</div>
               <div className="font-semibold text-sm">有氧运动</div>
               <div className="text-xs text-orange-100 mt-1">时长 · 距离</div>
@@ -131,10 +122,20 @@ export default function DashboardPage() {
 
         {/* 功能入口 */}
         <div className="space-y-3">
-          <button
-            onClick={() => router.push('/history')}
-            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all"
-          >
+          <button onClick={() => router.push('/stats')}
+            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📊</span>
+              <div className="text-left">
+                <div className="font-semibold text-sm">训练数据</div>
+                <div className="text-xs text-gray-400 mt-0.5">进步曲线 · 总量统计</div>
+              </div>
+            </div>
+            <span className="text-gray-500 text-lg">→</span>
+          </button>
+
+          <button onClick={() => router.push('/history')}
+            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
             <div className="flex items-center gap-3">
               <span className="text-2xl">📅</span>
               <div className="text-left">
@@ -145,10 +146,8 @@ export default function DashboardPage() {
             <span className="text-gray-500 text-lg">→</span>
           </button>
 
-          <button
-            onClick={() => router.push('/leaderboard')}
-            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all"
-          >
+          <button onClick={() => router.push('/leaderboard')}
+            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🏆</span>
               <div className="text-left">
@@ -159,10 +158,8 @@ export default function DashboardPage() {
             <span className="text-gray-500 text-lg">→</span>
           </button>
 
-          <button
-            onClick={() => router.push('/photos')}
-            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all"
-          >
+          <button onClick={() => router.push('/photos')}
+            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all">
             <div className="flex items-center gap-3">
               <span className="text-2xl">📸</span>
               <div className="text-left">
@@ -194,7 +191,6 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   )
