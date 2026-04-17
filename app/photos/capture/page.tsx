@@ -8,6 +8,7 @@ import { Suspense } from 'react'
 function CaptureContent() {
   const [step, setStep] = useState<'guide' | 'camera' | 'preview' | 'saving'>('guide')
   const [part, setPart] = useState<'face' | 'waist'>('face')
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user')
   const [imageBase64, setImageBase64] = useState('')
   const [imagePreview, setImagePreview] = useState('')
   const [cameraReady, setCameraReady] = useState(false)
@@ -31,12 +32,13 @@ function CaptureContent() {
     setCameraReady(false)
   }
 
-  const startCamera = async () => {
+  const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
     setError('')
     setCameraReady(false)
+    stopCamera()
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+        video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } }
       })
       streamRef.current = stream
       setStep('camera')
@@ -51,6 +53,12 @@ function CaptureContent() {
     }
   }
 
+  const switchCamera = async () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user'
+    setFacingMode(newMode)
+    await startCamera(newMode)
+  }
+
   const takePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return
     const video = videoRef.current
@@ -59,15 +67,20 @@ function CaptureContent() {
     canvas.height = video.videoHeight
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    ctx.translate(canvas.width, 0)
-    ctx.scale(-1, 1)
+
+    // 前置摄像头镜像翻转，后置不翻转
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0)
+      ctx.scale(-1, 1)
+    }
     ctx.drawImage(video, 0, 0)
+
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
     setImageBase64(dataUrl.split(',')[1])
     setImagePreview(dataUrl)
     stopCamera()
     setStep('preview')
-  }, [])
+  }, [facingMode])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -195,9 +208,9 @@ function CaptureContent() {
             <div className="bg-red-900/40 border border-red-700 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>
           )}
 
-          <button onClick={startCamera}
+          <button onClick={() => startCamera()}
             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl py-4 text-base transition-colors">
-            📸 开始拍照（前置摄像头）
+            📸 开始拍照
           </button>
 
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
@@ -221,7 +234,10 @@ function CaptureContent() {
               onLoadedMetadata={() => { videoRef.current?.play(); setCameraReady(true) }}
               onCanPlay={() => { videoRef.current?.play(); setCameraReady(true) }}
               className="w-full"
-              style={{ transform: 'scaleX(-1)', display: cameraReady ? 'block' : 'none' }}
+              style={{
+                transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+                display: cameraReady ? 'block' : 'none'
+              }}
             />
             {cameraReady && (
               <>
@@ -233,16 +249,44 @@ function CaptureContent() {
                 <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/70">
                   {currentPart === 'face' ? '将脸部对准框内' : '将腰腹部对准框内'}
                 </p>
+
+                {/* 切换摄像头按钮 */}
+                <button
+                  onClick={switchCamera}
+                  className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-colors"
+                >
+                  🔄
+                </button>
+
+                {/* 当前摄像头指示 */}
+                <div className="absolute top-3 left-3 bg-black/50 text-white text-xs px-2.5 py-1.5 rounded-full">
+                  {facingMode === 'user' ? '前置' : '后置'}
+                </div>
               </>
             )}
           </div>
+
           <canvas ref={canvasRef} className="hidden" />
-          <button onClick={takePhoto} disabled={!cameraReady}
-            className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-40">
-            <div className="w-16 h-16 bg-white border-4 border-gray-300 rounded-full" />
-          </button>
-          <button onClick={() => { stopCamera(); setStep('guide') }}
-            className="text-gray-400 text-sm hover:text-white transition-colors">取消</button>
+
+          {/* 底部控制栏 */}
+          <div className="flex items-center justify-center gap-8 w-full">
+            <button onClick={() => { stopCamera(); setStep('guide') }}
+              className="text-gray-400 text-sm hover:text-white transition-colors w-16 text-center">
+              取消
+            </button>
+
+            {/* 拍照按钮 */}
+            <button onClick={takePhoto} disabled={!cameraReady}
+              className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-40">
+              <div className="w-16 h-16 bg-white border-4 border-gray-300 rounded-full" />
+            </button>
+
+            {/* 切换摄像头（底部也放一个，手机更方便点） */}
+            <button onClick={switchCamera} disabled={!cameraReady}
+              className="text-gray-400 hover:text-white w-16 text-center text-2xl disabled:opacity-40 transition-colors">
+              🔄
+            </button>
+          </div>
         </div>
       )}
 
