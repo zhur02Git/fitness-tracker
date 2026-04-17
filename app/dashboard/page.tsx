@@ -25,7 +25,6 @@ export default function DashboardPage() {
       if (!user) { router.push('/login'); return }
       setUserEmail(user.email || '')
 
-      // 获取最近3条记录
       const { data } = await supabase
         .from('workouts')
         .select(`
@@ -39,7 +38,6 @@ export default function DashboardPage() {
 
       if (data) setRecentWorkouts(data as RecentWorkout[])
 
-      // 获取总训练次数
       const { count } = await supabase
         .from('workouts')
         .select('*', { count: 'exact', head: true })
@@ -98,7 +96,8 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs text-gray-400">累计训练</p>
             <p className="text-lg font-bold">
-              {loading ? '–' : totalWorkouts} <span className="text-sm font-normal text-gray-400">次</span>
+              {loading ? '–' : totalWorkouts}
+              <span className="text-sm font-normal text-gray-400"> 次</span>
             </p>
           </div>
         </div>
@@ -130,20 +129,50 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 查看历史 */}
-        <button
-          onClick={() => router.push('/history')}
-          className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">📅</span>
-            <div className="text-left">
-              <div className="font-semibold text-sm">训练历史</div>
-              <div className="text-xs text-gray-400 mt-0.5">查看所有记录</div>
+        {/* 功能入口 */}
+        <div className="space-y-3">
+          <button
+            onClick={() => router.push('/history')}
+            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📅</span>
+              <div className="text-left">
+                <div className="font-semibold text-sm">训练历史</div>
+                <div className="text-xs text-gray-400 mt-0.5">查看所有记录</div>
+              </div>
             </div>
-          </div>
-          <span className="text-gray-500 text-lg">→</span>
-        </button>
+            <span className="text-gray-500 text-lg">→</span>
+          </button>
+
+          <button
+            onClick={() => router.push('/leaderboard')}
+            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏆</span>
+              <div className="text-left">
+                <div className="font-semibold text-sm">排行榜</div>
+                <div className="text-xs text-gray-400 mt-0.5">和大家比一比</div>
+              </div>
+            </div>
+            <span className="text-gray-500 text-lg">→</span>
+          </button>
+
+          <button
+            onClick={() => router.push('/photos')}
+            className="w-full bg-gray-900 hover:bg-gray-800 active:scale-95 rounded-2xl p-4 flex items-center justify-between transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📸</span>
+              <div className="text-left">
+                <div className="font-semibold text-sm">身体变化记录</div>
+                <div className="text-xs text-gray-400 mt-0.5">AI 对比前后变化</div>
+              </div>
+            </div>
+            <span className="text-gray-500 text-lg">→</span>
+          </button>
+        </div>
 
         {/* 最近记录 */}
         {!loading && recentWorkouts.length > 0 && (
