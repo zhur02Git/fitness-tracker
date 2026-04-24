@@ -4,18 +4,20 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
-// ✅ 肌肉群动作配置
+// ✅ 最新肌肉群配置
 const MUSCLE_GROUPS: Record<string, string[]> = {
   '🫁 胸': ['卧推', '哑铃夹胸', '器械上推'],
-  '🦅 肩': ['飞鸟', '哑铃上推', '二头上推', '俯卧撑'],
-  '🦈 背': ['引体向上', '划船', '高位下拉', '单臂划船'],
-  '💪 手臂': ['哑铃后举', '哑铃锤举'],
+  '🦅 肩': ['飞鸟', '哑铃上推', '二头上推', '俯卧撑', '绳索下拉'],
+  '🦈 背': ['引体向上', '划船', '高位下拉', '单臂划船', '悬垂举腿'],
+  '💪 手臂': ['哑铃后举', '哑铃锤举', '绳索弯举'],
   '🦵 腿': ['深蹲', '哑铃深蹲', '罗马尼亚硬拉', '保加利亚蹲', '单腿起', '器械举腿'],
 }
 
+const ALL_PRESET_EXERCISES = new Set(Object.values(MUSCLE_GROUPS).flat())
 const CARDIO_TYPES = ['跑步', '骑行', '游泳', '椭圆机', '跳绳', '其他']
 
 type StrengthSet = {
+  id?: string
   exercise_name: string
   sets: number
   reps: number
@@ -44,13 +46,176 @@ type AddSet = {
   weight_kg: number
 }
 
+// ✅ 编辑单条力量记录的弹窗
+function EditSetModal({
+  set,
+  workoutId,
+  onClose,
+  onSaved,
+}: {
+  set: StrengthSet & { idx: number }
+  workoutId: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const supabase = createClient()
+  const [exerciseName, setExerciseName] = useState(set.exercise_name)
+  const [numSets, setNumSets] = useState(set.sets)
+  const [reps, setReps] = useState(set.reps)
+  const [weight, setWeight] = useState(set.weight_kg)
+  const [customGroup, setCustomGroup] = useState(Object.keys(MUSCLE_GROUPS)[0])
+  const [saving, setSaving] = useState(false)
+
+  const isCustom = !ALL_PRESET_EXERCISES.has(exerciseName)
+
+  const handleSave = async () => {
+    setSaving(true)
+    if (set.id) {
+      // 有 id，直接 update
+      await supabase
+        .from('strength_sets')
+        .update({
+          exercise_name: exerciseName,
+          sets: numSets,
+          reps,
+          weight_kg: weight,
+        })
+        .eq('id', set.id)
+    } else {
+      // 无 id（旧数据），用 workout_id + 原动作名 + idx 定位（upsert不可靠，改用 update by filter）
+      await supabase
+        .from('strength_sets')
+        .update({
+          exercise_name: exerciseName,
+          sets: numSets,
+          reps,
+          weight_kg: weight,
+        })
+        .eq('workout_id', workoutId)
+        .eq('exercise_name', set.exercise_name)
+    }
+    setSaving(false)
+    onSaved()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-end z-50">
+      <div className="bg-gray-900 rounded-t-3xl w-full max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 sticky top-0 bg-gray-900">
+          <h2 className="font-bold text-lg">✏️ 修改训练记录</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">✕</button>
+        </div>
+
+        <div className="px-5 py-5 space-y-5 pb-10">
+          {/* 动作名 */}
+          <div className="space-y-2">
+            <label className="text-sm text-gray-400">动作名称</label>
+            <input
+              type="text"
+              value={exerciseName}
+              onChange={e => setExerciseName(e.target.value)}
+              className="w-full bg-gray-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {/* 快速选动作 */}
+            <div className="space-y-2 pt-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {Object.keys(MUSCLE_GROUPS).map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setCustomGroup(g)}
+                    className={`flex-shrink-0 px-3 py-1 rounded-full text-xs transition-colors ${customGroup === g ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {MUSCLE_GROUPS[customGroup].map(ex => (
+                  <button
+                    key={ex}
+                    onClick={() => setExerciseName(ex)}
+                    className={`px-3 py-1.5 rounded-full text-xs transition-colors ${exerciseName === ex ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 如果是自定义动作，提示选择归属分类（仅提示，不影响保存） */}
+          {isCustom && exerciseName.trim() !== '' && (
+            <div className="bg-gray-800 rounded-xl px-4 py-3 space-y-2">
+              <p className="text-xs text-yellow-400">✨ 自定义动作，请选择归属肌肉群（用于统计分组）</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(MUSCLE_GROUPS).map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setCustomGroup(g)}
+                    className={`px-3 py-1 rounded-full text-xs transition-colors ${customGroup === g ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 组数 / 次数 / 重量 */}
+          <div className="grid grid-cols-3 gap-3">
+            {([
+              ['组数', numSets, setNumSets, 1],
+              ['次数', reps, setReps, 1],
+              ['重量 kg', weight, setWeight, 0.5],
+            ] as [string, number, (v: number) => void, number][]).map(([label, val, setter, step]) => (
+              <div key={label} className="space-y-1">
+                <label className="text-xs text-gray-400 block text-center">{label}</label>
+                <div className="flex items-center bg-gray-800 rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setter(Math.max(0, val - step))}
+                    className="px-3 py-3 text-gray-400 hover:text-white active:bg-gray-700 text-lg leading-none"
+                  >−</button>
+                  <input
+                    type="number"
+                    value={val}
+                    onChange={e => setter(Number(e.target.value))}
+                    min={0}
+                    step={step}
+                    className="flex-1 bg-transparent text-center text-white text-sm focus:outline-none w-0"
+                  />
+                  <button
+                    onClick={() => setter(val + step)}
+                    className="px-3 py-3 text-gray-400 hover:text-white active:bg-gray-700 text-lg leading-none"
+                  >+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 保存 */}
+          <button
+            onClick={handleSave}
+            disabled={saving || !exerciseName.trim()}
+            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-2xl py-4 font-semibold transition-colors"
+          >
+            {saving ? '保存中...' : '✅ 保存修改'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function HistoryPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // 补录弹窗状态
+  // 编辑弹窗
+  const [editSet, setEditSet] = useState<(StrengthSet & { idx: number; workoutId: string }) | null>(null)
+
+  // 补录弹窗
   const [showAdd, setShowAdd] = useState(false)
   const [addDate, setAddDate] = useState(new Date().toISOString().split('T')[0])
   const [addType, setAddType] = useState<'strength' | 'cardio'>('strength')
@@ -60,6 +225,7 @@ export default function HistoryPage() {
   // 力量补录
   const [selectedGroup, setSelectedGroup] = useState(Object.keys(MUSCLE_GROUPS)[0])
   const [exercise, setExercise] = useState('')
+  const [customInputGroup, setCustomInputGroup] = useState(Object.keys(MUSCLE_GROUPS)[0])
   const [numSets, setNumSets] = useState(3)
   const [reps, setReps] = useState(10)
   const [weight, setWeight] = useState(0)
@@ -84,7 +250,7 @@ export default function HistoryPage() {
       .from('workouts')
       .select(`
         id, date, notes, created_at,
-        strength_sets ( exercise_name, sets, reps, weight_kg ),
+        strength_sets ( id, exercise_name, sets, reps, weight_kg ),
         cardio_sessions ( exercise_type, duration_minutes, distance_km )
       `)
       .eq('user_id', user.id)
@@ -94,7 +260,6 @@ export default function HistoryPage() {
     setLoading(false)
   }
 
-  // ✅ 删除
   const handleDelete = async () => {
     if (!deleteId) return
     setDeleting(true)
@@ -104,14 +269,14 @@ export default function HistoryPage() {
     setDeleting(false)
   }
 
-  // ✅ 添加动作到列表
   const addToList = () => {
     if (!exercise) return
     setSetList(prev => [...prev, { exercise_name: exercise, sets: numSets, reps, weight_kg: weight }])
     setExercise('')
   }
 
-  // ✅ 补录保存
+  const isCustomExercise = !ALL_PRESET_EXERCISES.has(exercise) && exercise.trim() !== ''
+
   const handleSaveAdd = async () => {
     if (addType === 'strength' && setList.length === 0) return
     setSaving(true)
@@ -119,9 +284,7 @@ export default function HistoryPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    // created_at 用选择的日期（中午12点，避免时区问题）
     const created_at = new Date(`${addDate}T12:00:00`).toISOString()
-
     const { data: workout, error: wErr } = await supabase
       .from('workouts')
       .insert({ user_id: user.id, notes: addNotes, date: addDate, created_at })
@@ -143,7 +306,6 @@ export default function HistoryPage() {
       })
     }
 
-    // 重置
     setShowAdd(false)
     setSetList([])
     setAddNotes('')
@@ -208,17 +370,24 @@ export default function HistoryPage() {
                 </button>
               </div>
 
-              {/* 力量记录 */}
+              {/* 力量记录 - 每条可点击编辑 */}
               {w.strength_sets.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-gray-400 font-medium">🏋️ 力量训练</p>
+                  <p className="text-xs text-gray-400 font-medium">🏋️ 力量训练 <span className="text-gray-600">（点击可修改）</span></p>
                   {w.strength_sets.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-2">
+                    <button
+                      key={i}
+                      onClick={() => setEditSet({ ...s, idx: i, workoutId: w.id })}
+                      className="w-full flex items-center justify-between bg-gray-800 hover:bg-gray-700 active:bg-gray-600 rounded-xl px-3 py-2.5 transition-colors text-left"
+                    >
                       <span className="text-sm">{s.exercise_name}</span>
-                      <span className="text-xs text-gray-400">
-                        {s.sets}组 × {s.reps}次{s.weight_kg > 0 ? ` · ${s.weight_kg}kg` : ''}
-                      </span>
-                    </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">
+                          {s.sets}组 × {s.reps}次{s.weight_kg > 0 ? ` · ${s.weight_kg}kg` : ''}
+                        </span>
+                        <span className="text-gray-600 text-xs">✏️</span>
+                      </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -245,6 +414,16 @@ export default function HistoryPage() {
           ))
         )}
       </div>
+
+      {/* ✅ 编辑弹窗 */}
+      {editSet && (
+        <EditSetModal
+          set={editSet}
+          workoutId={editSet.workoutId}
+          onClose={() => setEditSet(null)}
+          onSaved={() => { setEditSet(null); fetchHistory() }}
+        />
+      )}
 
       {/* ✅ 删除确认弹窗 */}
       {deleteId && (
@@ -275,14 +454,13 @@ export default function HistoryPage() {
       {showAdd && (
         <div className="fixed inset-0 bg-black/80 flex items-end z-50">
           <div className="bg-gray-900 rounded-t-3xl w-full max-h-[90vh] overflow-y-auto">
-            {/* 弹窗 Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 sticky top-0 bg-gray-900">
               <h2 className="font-bold text-lg">📝 补录历史训练</h2>
               <button onClick={() => { setShowAdd(false); setSetList([]) }} className="text-gray-400 hover:text-white text-xl">✕</button>
             </div>
 
             <div className="px-5 py-4 space-y-5 pb-10">
-              {/* 日期选择 */}
+              {/* 日期 */}
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 font-medium">训练日期</label>
                 <input
@@ -296,24 +474,19 @@ export default function HistoryPage() {
 
               {/* 类型切换 */}
               <div className="flex gap-2">
-                <button
-                  onClick={() => setAddType('strength')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${addType === 'strength' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}
-                >
+                <button onClick={() => setAddType('strength')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${addType === 'strength' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
                   🏋️ 力量训练
                 </button>
-                <button
-                  onClick={() => setAddType('cardio')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${addType === 'cardio' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'}`}
-                >
+                <button onClick={() => setAddType('cardio')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${addType === 'cardio' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400'}`}>
                   🏃 有氧运动
                 </button>
               </div>
 
-              {/* 力量训练表单 */}
+              {/* 力量表单 */}
               {addType === 'strength' && (
                 <div className="space-y-4">
-                  {/* 肌肉群 */}
                   <div className="space-y-2">
                     <p className="text-xs text-gray-400">肌肉群</p>
                     <div className="flex flex-wrap gap-2">
@@ -326,7 +499,6 @@ export default function HistoryPage() {
                     </div>
                   </div>
 
-                  {/* 动作选择 */}
                   <div className="space-y-2">
                     <p className="text-xs text-gray-400">动作</p>
                     <div className="flex flex-wrap gap-2">
@@ -339,17 +511,30 @@ export default function HistoryPage() {
                     </div>
                     <input
                       type="text" value={exercise} onChange={e => setExercise(e.target.value)}
-                      placeholder="或手动输入..."
+                      placeholder="或手动输入自定义动作..."
                       className="w-full bg-gray-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    {/* ✅ 自定义动作提示选分类 */}
+                    {isCustomExercise && (
+                      <div className="bg-gray-800 border border-yellow-500/30 rounded-xl px-4 py-3 space-y-2">
+                        <p className="text-xs text-yellow-400">✨ 自定义动作，请选择归属肌肉群</p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.keys(MUSCLE_GROUPS).map(g => (
+                            <button key={g} onClick={() => setCustomInputGroup(g)}
+                              className={`px-3 py-1 rounded-full text-xs transition-colors ${customInputGroup === g ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
+                              {g}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* 组数/次数/重量 */}
                   <div className="grid grid-cols-3 gap-2">
-                    {[['组数', numSets, setNumSets], ['次数', reps, setReps], ['重量kg', weight, setWeight]].map(([label, val, setter]: any) => (
+                    {([['组数', numSets, setNumSets, 1], ['次数', reps, setReps, 1], ['重量kg', weight, setWeight, 0.5]] as any[]).map(([label, val, setter, step]) => (
                       <div key={label} className="space-y-1">
                         <label className="text-xs text-gray-400">{label}</label>
-                        <input type="number" value={val} onChange={e => setter(Number(e.target.value))} min={0} step={label === '重量kg' ? 0.5 : 1}
+                        <input type="number" value={val} onChange={e => setter(Number(e.target.value))} min={0} step={step}
                           className="w-full bg-gray-800 rounded-xl px-2 py-2.5 text-center text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                     ))}
@@ -360,7 +545,6 @@ export default function HistoryPage() {
                     + 添加到列表
                   </button>
 
-                  {/* 已添加列表 */}
                   {setList.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs text-gray-400">已添加 ({setList.length})</p>
@@ -378,7 +562,7 @@ export default function HistoryPage() {
                 </div>
               )}
 
-              {/* 有氧训练表单 */}
+              {/* 有氧表单 */}
               {addType === 'cardio' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -414,7 +598,6 @@ export default function HistoryPage() {
                   className="w-full bg-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
               </div>
 
-              {/* 保存按钮 */}
               <button
                 onClick={handleSaveAdd}
                 disabled={saving || (addType === 'strength' && setList.length === 0)}
