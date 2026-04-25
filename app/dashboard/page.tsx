@@ -13,17 +13,15 @@ type RecentWorkout = {
 
 type StrengthSet = {
   exercise_name: string
-  muscle_group: string
-  set_number: number
+  sets: number
   reps: number
   weight_kg: number | null
-  created_at: string
 }
 
 type WorkoutWithSets = {
   id: string
+  date: string
   created_at: string
-  workout_date: string | null
   strength_sets: StrengthSet[]
 }
 
@@ -98,82 +96,47 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // 拉取全部力量训练记录（含每组详情）
       const { data: workouts, error } = await supabase
         .from('workouts')
         .select(`
           id,
+          date,
           created_at,
-          workout_date,
           strength_sets (
             exercise_name,
-            muscle_group,
-            set_number,
+            sets,
             reps,
             weight_kg
           )
         `)
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true }) as { data: WorkoutWithSets[] | null, error: unknown }
+        .order('date', { ascending: true })
 
-      if (error || !workouts) throw new Error('获取数据失败')
-
-      // 只保留有力量训练的记录
-      const strengthWorkouts = workouts.filter(w => w.strength_sets && w.strength_sets.length > 0)
-
-      // 按训练日期整理，每天的所有动作汇总
-      const sessionMap: Record<string, {
-        date: string
-        exercises: Record<string, {
-          muscle_group: string
-          sets: { set_number: number; reps: number; weight_kg: number | null }[]
-        }>
-      }> = {}
-
-      for (const workout of strengthWorkouts) {
-        const dateKey = workout.workout_date
-          ? workout.workout_date
-          : workout.created_at.split('T')[0]
-
-        if (!sessionMap[dateKey]) {
-          sessionMap[dateKey] = { date: dateKey, exercises: {} }
-        }
-
-        for (const set of workout.strength_sets) {
-          const exName = set.exercise_name
-          if (!sessionMap[dateKey].exercises[exName]) {
-            sessionMap[dateKey].exercises[exName] = {
-              muscle_group: set.muscle_group || '未分类',
-              sets: []
-            }
-          }
-          sessionMap[dateKey].exercises[exName].sets.push({
-            set_number: set.set_number,
-            reps: set.reps,
-            weight_kg: set.weight_kg
-          })
-        }
+      if (error) {
+        console.error('Supabase错误:', JSON.stringify(error))
+        throw new Error('获取数据失败')
       }
 
-      // 转成数组并整理成Claude易读格式
-      const sessions = Object.values(sessionMap)
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .map(session => ({
-          date: session.date,
-          exercises: Object.entries(session.exercises).map(([name, data]) => ({
-            name,
-            muscle_group: data.muscle_group,
-            total_sets: data.sets.length,
-            total_reps: data.sets.reduce((sum, s) => sum + s.reps, 0),
-            max_weight_kg: data.sets.some(s => s.weight_kg !== null)
-              ? Math.max(...data.sets.filter(s => s.weight_kg !== null).map(s => s.weight_kg as number))
-              : null,
-            total_volume_kg: data.sets.some(s => s.weight_kg !== null)
-              ? data.sets.reduce((sum, s) => sum + (s.reps * (s.weight_kg || 0)), 0)
-              : null,
-            sets_detail: data.sets.sort((a, b) => a.set_number - b.set_number)
-          }))
-        }))
+      const typedWorkouts = (workouts || []) as WorkoutWithSets[]
+      const strengthWorkouts = typedWorkouts.filter(w => w.strength_sets && w.strength_sets.length > 0)
+
+      const sessions = strengthWorkouts.map(workout => {
+        const date = workout.date || workout.created_at.split('T')[0]
+
+        const exercises = workout.strength_sets.map(s => {
+          const hasWeight = s.weight_kg !== null && s.weight_kg > 0
+          return {
+            name: s.exercise_name,
+            sets: s.sets,
+            reps_per_set: s.reps,
+            total_reps: s.sets * s.reps,
+            weight_kg: hasWeight ? s.weight_kg : null,
+            total_volume_kg: hasWeight ? s.sets * s.reps * (s.weight_kg as number) : null,
+          }
+        })
+
+        return { date, exercises }
+      })
 
       const dates = sessions.map(s => s.date)
       const exportPayload = {
@@ -185,12 +148,11 @@ export default function DashboardPage() {
             earliest: dates[0] || '无记录',
             latest: dates[dates.length - 1] || '无记录'
           },
-          how_to_use: '将此文件上传给Claude，询问：请分析我的力量训练数据，给出进步趋势和建议'
+          how_to_use: '将此文件上传给Claude，问：请分析我的力量训练数据，给出进步趋势和改进建议'
         },
         training_sessions: sessions
       }
 
-      // 下载JSON文件
       const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
         type: 'application/json'
       })
@@ -261,7 +223,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 导出数据给Claude分析 */}
+        {/* 导出给Claude分析 */}
         <div>
           <h2 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">AI 分析</h2>
           <button
