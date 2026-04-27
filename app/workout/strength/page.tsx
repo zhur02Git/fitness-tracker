@@ -322,7 +322,7 @@ export default function StrengthPage() {
                   <p className="text-xs text-gray-400 mt-0.5">
                     {s.sets} 组 × {s.reps} 次{s.weight_kg > 0 ? ` · ${s.weight_kg} kg` : ''}
                     <span className="ml-2 text-gray-500">
-                      总量 {s.sets * s.reps * (s.weight_kg || 1).toFixed(0)} {s.weight_kg > 0 ? 'kg' : 'rep'}
+                      总量 {(s.sets * s.reps * (s.weight_kg || 1)).toFixed(0)} {s.weight_kg > 0 ? 'kg' : 'rep'}
                     </span>
                   </p>
                 </div>
